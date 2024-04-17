@@ -4,10 +4,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log/slog"
 	"net/http"
 )
+
+type ChatResponse struct {
+	Model     string  `json:"model"`
+	Message   Message `json:"message"`
+	CreatedAt string  `json:"created_at"`
+	Done      bool    `json:"done"`
+}
 
 type FunctionDefinition struct {
 	// Type      string `json:"type"`
@@ -81,7 +88,6 @@ var messages = []Message{
 }
 
 func main() {
-
 	url := "http://localhost:11434/api/chat"
 	method := "POST"
 
@@ -101,19 +107,12 @@ func main() {
 
 		for i, message := range chatRequest.Messages {
 			if message.Content == "" {
-				fmt.Println("I RAN")
 				chatRequest.Messages[i].Content = string(jsons)
 				break
 			}
 
 		}
 	}
-
-	// for _, message := range chatRequest.Messages {
-	// 	fmt.Println("Chat request: \n", message.Content)
-	// }
-	//
-	// return
 
 	payload2, err := json.Marshal(chatRequest)
 	if err != nil {
@@ -140,26 +139,26 @@ func main() {
 		}
 		defer res.Body.Close()
 
-		body, err := ioutil.ReadAll(res.Body)
+		body, err := io.ReadAll(res.Body)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		fmt.Println(string(body))
+
 		var payload ChatResponse
 		if err := json.Unmarshal(body, &payload); err != nil {
 			fmt.Println("Error line 166")
 			panic(err)
 		}
 
-		// Unmarshal the content of Payload.Content into ContentData struct
+		// Unmarshal the content of Payload.Message.Content into FunctionDefinition struct
 		var function FunctionDefinition
 		if err := json.Unmarshal([]byte(payload.Message.Content), &function); err != nil {
 			fmt.Println("Error:", err)
 			return
 		}
 
-		// Print the content data
+		// Print the function data
 		fmt.Println("Function:", function.Name)
 		fmt.Println("Location:", function.Arguments)
 
@@ -168,13 +167,6 @@ func main() {
 		}
 	}
 
-}
-
-type ChatResponse struct {
-	Model     string  `json:"model"`
-	Message   Message `json:"message"`
-	CreatedAt string  `json:"created_at"`
-	Done      bool    `json:"done"`
 }
 
 // get_weather() is a function return an int indicating current temperature in celsius
