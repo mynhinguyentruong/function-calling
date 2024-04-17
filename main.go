@@ -55,6 +55,38 @@ var functionDefinitions = []FunctionDefinition{
 	},
 }
 
+var second_messages = []Message{
+	{
+		Role:    "system",
+		Content: "You are a classification bot, and your task is to classify user input and fit into one of two functions: get_weather and not_applicable. You will have to identify the arguments can be passed into the function which is a location. If no location is provided, ask user to specify location. Respond using JSON",
+	},
+	{
+		Role:    "user",
+		Content: "What's the weather like in San Francisco?"},
+	{
+		Role:    "assistant",
+		Content: "",
+	},
+	{
+		Role:    "user",
+		Content: "I'm visiting my parents in Toronto"},
+	{
+		Role:    "assistant",
+		Content: "",
+	},
+	{
+		Role:    "user",
+		Content: "Is it going to be sunny next week?"},
+	{
+		Role:    "assistant",
+		Content: "",
+	},
+	{
+		Role:    "user",
+		Content: "is it going to be raining next week?",
+	},
+}
+
 var messages = []Message{
 	{
 		Role:    "system",
@@ -98,6 +130,13 @@ func main() {
 		Messages: messages,
 	}
 
+	second_chatRequest := ChatRequest{
+		Model:    "mistral",
+		Format:   "json",
+		Stream:   false,
+		Messages: second_messages,
+	}
+
 	for _, f := range functionDefinitions {
 		jsons, err := json.Marshal(f)
 		if err != nil {
@@ -114,16 +153,39 @@ func main() {
 		}
 	}
 
+	for _, f := range functionDefinitions {
+		jsons, err := json.Marshal(f)
+		if err != nil {
+			fmt.Println("Error line 145:", err)
+			return
+		}
+
+		for i, message := range second_chatRequest.Messages {
+			if message.Content == "" {
+				second_chatRequest.Messages[i].Content = string(jsons)
+				break
+			}
+
+		}
+	}
+
 	payload2, err := json.Marshal(chatRequest)
+	if err != nil {
+		fmt.Errorf("Error at line 153 %s", err)
+	}
+
+	payload, err := json.Marshal(second_chatRequest)
 	if err != nil {
 		fmt.Errorf("Error at line 153 %s", err)
 	}
 
 	client := &http.Client{}
 	req2, err := http.NewRequest(method, url, bytes.NewBuffer(payload2))
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(payload))
 	req2.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Content-Type", "application/json")
 
-	requests := []*http.Request{req2, req2}
+	requests := []*http.Request{req, req2}
 
 	if err != nil {
 		fmt.Println(err)
@@ -160,9 +222,10 @@ func main() {
 
 		// Print the function data
 		fmt.Println("Function:", function.Name)
-		fmt.Println("Location:", function.Arguments)
+		fmt.Println("Arguments:", function.Arguments)
+		fmt.Println("FollowUp:", function.FollowUp)
 
-		if function.Name == "get_weather" {
+		if function.Name == "get_weather" && function.Arguments != "" {
 			slog.Info("Got value", "temperature", get_weather())
 		}
 	}
